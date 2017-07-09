@@ -85,34 +85,124 @@
         create: function () {
             game.physics.startSystem(Phaser.Physics.ARCADE);
             var bg = game.add.tileSprite(0, 0, game.width, game.height, 'bg');
-            bg.autoScroll(0, -20);
+            bg.autoScroll(0, 20);
             this.myPlane = game.add.sprite(game.width/2 - 20, game.height/2 - 100, 'myplane');
             this.myPlane.animations.add('fly');
-            this.myPlane.inputEnabled = true;
-            this.myPlane.input.enableDrag(true);
-            game.physics.arcade.enable(this.myPlane, Phaser.Physics.ARCADE);
+            game.physics.enable(this.myPlane, Phaser.Physics.ARCADE);
             this.myPlane.body.collideWorldBounds = true;
             var myPlaneTween = game.add.tween(this.myPlane).to({y: game.height - 50},1000, null, true);
             this.playback = game.add.audio('playback', 0.5, true);
             this.playback.play();
             myPlaneTween.onComplete.add(this.onPlay, this);
-            this.last = Date.now();
+            this.lastMyBulletTime = Date.now();
+            this.lastEnemy1Time = Date.now();
+            this.lastEnemy2Time = Date.now();
+            this.lastEnemy3Time = Date.now();
             this.playing = false;
         },
         update: function () {
             this.myPlane.animations.play('fly', 10, true);
             var now = Date.now();
-            if (now - this.last > 300 && this.playing) {
-                var mybullet = game.add.sprite(this.myPlane.x + 15, this.myPlane.y - 20, 'mybullet');
-                game.physics.arcade.enable(mybullet, Phaser.Physics.ARCADE);
-                mybullet.body.velocity.y = -500;
-                this.last = now;
+            if (now - this.lastMyBulletTime > 150 && this.playing) {
+                this.myBulletFactory();
+                this.lastMyBulletTime = now;
+            }
+            if (now - this.lastEnemy1Time > 1000 && this.playing) {
+                this.enemy1Factory();
+                this.lastEnemy1Time = now;
+            }
+            if (now - this.lastEnemy2Time > 2000 && this.playing) {
+                this.enemy2Factory();
+                this.lastEnemy2Time = now;
+            }
+            if (now - this.lastEnemy3Time > 10000 && this.playing) {
+                this.enemy3Factory();
+                this.lastEnemy3Time = now;
+            }
+
+            if (this.enemys1 && this.enemys1.countLiving() !== 0 && this.myBullets && this.myBullets.countLiving() !== 0) {
+                game.physics.arcade.overlap(this.myBullets, this.enemys1, this.hitEnemy, null, this);
+            }
+            if (this.enemys2 && this.enemys2.countLiving() !== 0 && this.myBullets && this.myBullets.countLiving() !== 0) {
+                game.physics.arcade.overlap(this.myBullets, this.enemys2, this.hitEnemy, null, this);
+            }
+            if (this.enemys3 && this.enemys3.countLiving() !== 0 && this.myBullets && this.myBullets.countLiving() !== 0) {
+                game.physics.arcade.overlap(this.myBullets, this.enemys3, this.hitEnemy, null, this);
             }
         },
         onPlay: function () {
-            this.playing = true;
             var shootAudio = game.add.audio('fashe', 1, true);
             shootAudio.play();
+            this.myPlane.inputEnabled = true;
+            this.myPlane.input.enableDrag(true);
+            this.score = 0;
+            this.scoreText = game.add.text(0, 0, 'Score: 0', {fontSize: '10px', fill: '#dc3737'});
+            this.myBullets = game.add.group();
+            this.myBullets.enableBody = true;
+            this.enemys1 = game.add.group();
+            this.enemys1.enableBody = true;
+
+            this.enemys2 = game.add.group();
+            this.enemys2.enableBody = true;
+
+            this.enemys3 = game.add.group();
+            this.enemys3.enableBody = true;
+
+            this.playing = true;
+        },
+        myBulletFactory: function () {
+            var mybullet = this.myBullets.getFirstExists(false, true, this.myPlane.x + 15, this.myPlane.y - 20, 'mybullet');
+            mybullet.body.velocity.y = -800;
+            mybullet.checkWorldBounds = true;
+            mybullet.outOfBoundsKill = true;
+        },
+        enemy1Factory: function () {
+            var x = Math.floor(Math.random() * 220);
+            var y = -20;
+            var enemy = this.enemys1.getFirstExists(false, true, x, y, 'enemy1');
+            enemy.body.velocity.y = parseInt(Math.random() * 30) + 10;
+            enemy.checkWorldBounds = true;
+            enemy.outOfBoundsKill = true;
+            enemy.health = 1;
+            // console.log(this.enemys.countLiving());
+        },
+        enemy2Factory: function () {
+            var x = Math.floor(Math.random() * 210);
+            var y = -30;
+            var enemy = this.enemys2.getFirstExists(false, true, x, y, 'enemy2');
+            enemy.body.velocity.y = parseInt(Math.random() * 30) + 10;
+            enemy.checkWorldBounds = true;
+            enemy.outOfBoundsKill = true;
+            enemy.health = 3;
+            // console.log(this.enemys.countLiving());
+        },
+        enemy3Factory: function () {
+            var x = Math.floor(Math.random() * 190);
+            var y = -50;
+            var enemy = this.enemys3.getFirstExists(false, true, x, y, 'enemy3');
+            enemy.body.velocity.y = parseInt(Math.random() * 30) + 10;
+            enemy.checkWorldBounds = true;
+            enemy.outOfBoundsKill = true;
+            enemy.health = 10;
+            // console.log(this.enemys.countLiving());
+        },
+        hitEnemy: function (bullet, enemy) {
+            enemy.health--;
+            bullet.kill();
+            if (enemy.health > 0) {
+                return;
+            }
+            enemy.kill();
+            if (enemy.key === 'enemy1') {
+                this.score += 10;
+                this.scoreText.text = 'Score: ' + this.score;
+            } else if (enemy.key === 'enemy2') {
+                this.score += 20;
+                this.scoreText.text = 'Score: ' + this.score;
+            } else {
+                this.score += 50;
+                this.scoreText.text = 'Score: ' + this.score;
+            }
         }
     }
 

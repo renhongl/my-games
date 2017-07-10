@@ -39,11 +39,11 @@
             game.load.image('logo', 'assets/logo.jpg');
 
             
-            game.load.image('replaybutton', 'assets/replaybutton.png');
+            game.load.spritesheet('replaybutton', 'assets/replaybutton.png', 80, 30);
             game.load.image('share', 'assets/share.png');
             game.load.image('logo', 'assets/logo.jpg');
 
-            game.load.image('sharebutton', 'assets/sharebutton.png');
+            game.load.spritesheet('sharebutton', 'assets/sharebutton.png', 80, 30);
             game.load.spritesheet('startbutton', 'assets/startbutton.png', 100, 40);
 
             game.load.audio('normalback', 'assets/normalback.mp3');
@@ -69,14 +69,14 @@
             this.myPlane.animations.add('fly');
             this.startButton = game.add.button(game.width/2 - 50, game.height/2 - 20, 'startbutton', this.onStart, this, 0, 1, 0, 1);
             game.add.image(8, game.height - 15, 'copyright');
-            this.normalback = game.add.audio('normalback', 0.5, true);
-            this.normalback.play();
+            game.normalback = game.add.audio('normalback', 0.5, true);
+            game.normalback.play();
         },
         update: function () {
             this.myPlane.animations.play('fly', 10, true);
         },
         onStart: function () {
-            this.normalback.stop();
+            game.normalback.stop();
             game.state.start('play');
         }
     }
@@ -90,9 +90,9 @@
             this.myPlane.animations.add('fly');
             game.physics.enable(this.myPlane, Phaser.Physics.ARCADE);
             this.myPlane.body.collideWorldBounds = true;
+            this.myPlane.health = 3;
             var myPlaneTween = game.add.tween(this.myPlane).to({y: game.height - 50},1000, null, true);
-            this.playback = game.add.audio('playback', 0.5, true);
-            this.playback.play();
+            
             myPlaneTween.onComplete.add(this.onPlay, this);
             this.lastMyBulletTime = Date.now();
             this.lastEnemy1Time = Date.now();
@@ -107,11 +107,11 @@
                 this.myBulletFactory();
                 this.lastMyBulletTime = now;
             }
-            if (now - this.lastEnemy1Time > 1000 && this.playing) {
+            if (now - this.lastEnemy1Time > 3000 && this.playing) {
                 this.enemy1Factory();
                 this.lastEnemy1Time = now;
             }
-            if (now - this.lastEnemy2Time > 2000 && this.playing) {
+            if (now - this.lastEnemy2Time > 5000 && this.playing) {
                 this.enemy2Factory();
                 this.lastEnemy2Time = now;
             }
@@ -129,13 +129,24 @@
             if (this.enemys3 && this.enemys3.countLiving() !== 0 && this.myBullets && this.myBullets.countLiving() !== 0) {
                 game.physics.arcade.overlap(this.myBullets, this.enemys3, this.hitEnemy, null, this);
             }
+
+            game.physics.arcade.overlap(this.myPlane, this.enemys1, this.crashMyPlane, null, this);
+            game.physics.arcade.overlap(this.myPlane, this.enemys2, this.crashMyPlane, null, this);
+            game.physics.arcade.overlap(this.myPlane, this.enemys3, this.crashMyPlane, null, this);
+        },
+        crashMyPlane: function (myPlane, bullet) {
+            myPlane.kill();
+            bullet.kill();
+            game.over = true;
+            game.playback.stop();
+            game.normalback.play();
+            game.state.start('restart');
         },
         onPlay: function () {
-            var shootAudio = game.add.audio('fashe', 1, true);
-            shootAudio.play();
+            
             this.myPlane.inputEnabled = true;
             this.myPlane.input.enableDrag(true);
-            this.score = 0;
+            game.score = 0;
             this.scoreText = game.add.text(0, 0, 'Score: 0', {fontSize: '10px', fill: '#dc3737'});
             this.myBullets = game.add.group();
             this.myBullets.enableBody = true;
@@ -148,13 +159,68 @@
             this.enemys3 = game.add.group();
             this.enemys3.enableBody = true;
 
+            this.enemyBullets1 = game.add.group();
+            this.enemyBullets1.enableBody = true;
+
+            this.enemyBullets2 = game.add.group();
+            this.enemyBullets2.enableBody = true;
+
+            this.enemyBullets3 = game.add.group();
+            this.enemyBullets3.enableBody = true;
+
             this.playing = true;
+            game.playback = game.add.audio('playback', 0.5, true);
+            game.playback.play();
         },
         myBulletFactory: function () {
-            var mybullet = this.myBullets.getFirstExists(false, true, this.myPlane.x + 15, this.myPlane.y - 20, 'mybullet');
-            mybullet.body.velocity.y = -800;
-            mybullet.checkWorldBounds = true;
-            mybullet.outOfBoundsKill = true;
+            if (game.over) {
+                return;
+            }
+            if (this.myPlane.health >= 1) {
+                var mybullet = this.myBullets.getFirstExists(false, true, this.myPlane.x + 15, this.myPlane.y - 20, 'mybullet');
+                mybullet.body.velocity.y = -300;
+                mybullet.checkWorldBounds = true;
+                mybullet.outOfBoundsKill = true;
+            }
+            if (this.myPlane.health >= 2) {
+                var mybullet = this.myBullets.getFirstExists(false, true, this.myPlane.x + 15, this.myPlane.y - 20, 'mybullet');
+                mybullet.body.velocity.y = -300;
+                mybullet.checkWorldBounds = true;
+                mybullet.outOfBoundsKill = true;
+                var mybullet2 = this.myBullets.getFirstExists(false, true, this.myPlane.x + 15, this.myPlane.y - 20, 'mybullet');
+                mybullet2.body.velocity.set(-40, -300);
+                mybullet2.checkWorldBounds = true;
+                mybullet2.outOfBoundsKill = true;
+                var mybullet3 = this.myBullets.getFirstExists(false, true, this.myPlane.x + 15, this.myPlane.y - 20, 'mybullet');
+                mybullet3.body.velocity.set(40, -300);
+                mybullet3.checkWorldBounds = true;
+                mybullet3.outOfBoundsKill = true;
+            }
+            if (this.myPlane.health >= 3) {
+                var mybullet = this.myBullets.getFirstExists(false, true, this.myPlane.x + 15, this.myPlane.y - 20, 'mybullet');
+                mybullet.body.velocity.y = -300;
+                mybullet.checkWorldBounds = true;
+                mybullet.outOfBoundsKill = true;
+                var mybullet2 = this.myBullets.getFirstExists(false, true, this.myPlane.x + 15, this.myPlane.y - 20, 'mybullet');
+                mybullet2.body.velocity.set(-40, -300);
+                mybullet2.checkWorldBounds = true;
+                mybullet2.outOfBoundsKill = true;
+                var mybullet3 = this.myBullets.getFirstExists(false, true, this.myPlane.x + 15, this.myPlane.y - 20, 'mybullet');
+                mybullet3.body.velocity.set(40, -300);
+                mybullet3.checkWorldBounds = true;
+                mybullet3.outOfBoundsKill = true;
+
+                var mybullet4 = this.myBullets.getFirstExists(false, true, this.myPlane.x + 15, this.myPlane.y - 20, 'mybullet');
+                mybullet4.body.velocity.set(-60, -300);
+                mybullet4.checkWorldBounds = true;
+                mybullet4.outOfBoundsKill = true;
+                var mybullet5 = this.myBullets.getFirstExists(false, true, this.myPlane.x + 15, this.myPlane.y - 20, 'mybullet');
+                mybullet5.body.velocity.set(60, -300);
+                mybullet5.checkWorldBounds = true;
+                mybullet5.outOfBoundsKill = true;
+            }
+            game.pi = game.add.audio('pi', 1);
+            game.pi.play();
         },
         enemy1Factory: function () {
             var x = Math.floor(Math.random() * 220);
@@ -164,7 +230,7 @@
             enemy.checkWorldBounds = true;
             enemy.outOfBoundsKill = true;
             enemy.health = 1;
-            // console.log(this.enemys.countLiving());
+            game.time.events.loop(Phaser.Timer.SECOND * 5, this.enemyBulletFactory1, this, enemy);
         },
         enemy2Factory: function () {
             var x = Math.floor(Math.random() * 210);
@@ -174,7 +240,7 @@
             enemy.checkWorldBounds = true;
             enemy.outOfBoundsKill = true;
             enemy.health = 3;
-            // console.log(this.enemys.countLiving());
+            game.time.events.loop(Phaser.Timer.SECOND * 4, this.enemyBulletFactory2, this, enemy);
         },
         enemy3Factory: function () {
             var x = Math.floor(Math.random() * 190);
@@ -184,7 +250,34 @@
             enemy.checkWorldBounds = true;
             enemy.outOfBoundsKill = true;
             enemy.health = 10;
-            // console.log(this.enemys.countLiving());
+            game.time.events.loop(Phaser.Timer.SECOND * 3, this.enemyBulletFactory3, this, enemy);
+        },
+        enemyBulletFactory1: function (enemy) {
+            if (!enemy.alive) {
+                return;
+            }
+            var enemyBullet = this.enemyBullets1.getFirstExists(false, true, enemy.x + 10, enemy.y + 20, 'bullet');
+            enemyBullet.body.velocity.y = 50;
+            enemyBullet.checkWorldBounds = true;
+            enemyBullet.outOfBoundsKill = true;
+        },
+        enemyBulletFactory2: function (enemy) {
+            if (!enemy.alive) {
+                return;
+            }
+            var enemyBullet = this.enemyBullets2.getFirstExists(false, true, enemy.x + 15, enemy.y + 30, 'bullet');
+            enemyBullet.body.velocity.y = 60;
+            enemyBullet.checkWorldBounds = true;
+            enemyBullet.outOfBoundsKill = true;
+        },
+        enemyBulletFactory3: function (enemy) {
+            if (!enemy.alive) {
+                return;
+            }
+            var enemyBullet = this.enemyBullets3.getFirstExists(false, true, enemy.x + 25, enemy.y + 50, 'bullet');
+            enemyBullet.body.velocity.y = 70;
+            enemyBullet.checkWorldBounds = true;
+            enemyBullet.outOfBoundsKill = true;
         },
         hitEnemy: function (bullet, enemy) {
             enemy.health--;
@@ -194,15 +287,35 @@
             }
             enemy.kill();
             if (enemy.key === 'enemy1') {
-                this.score += 10;
-                this.scoreText.text = 'Score: ' + this.score;
+                game.score += 10;
+                this.scoreText.text = 'Score: ' + game.score;
             } else if (enemy.key === 'enemy2') {
-                this.score += 20;
-                this.scoreText.text = 'Score: ' + this.score;
+                game.score += 20;
+                this.scoreText.text = 'Score: ' + game.score;
             } else {
-                this.score += 50;
-                this.scoreText.text = 'Score: ' + this.score;
+                game.score += 50;
+                this.scoreText.text = 'Score: ' + game.score;
             }
+        }
+    }
+
+    game.states.restart = {
+        create: function() {
+            var bg = game.add.image(0, 0, 'bg');
+            this.myPlane = game.add.sprite(game.width/2 - 20, game.height/2 - 100, 'myplane');
+            this.myPlane.animations.add('fly');
+            this.scoreText = game.add.text(game.width/2 - 50, game.height/2 - 20, 'Score: ' + game.score, {fontSize: '20px', fill: '#dc3737'});
+            this.replaybutton = game.add.button(game.width/2 - 90, game.height - 100, 'replaybutton', this.rePlay, this, 0, 1, 0, 1);
+            this.sharebutton = game.add.button(game.width/2 + 10, game.height - 100, 'sharebutton', null, this, 0, 1, 0, 1);
+            game.add.image(8, game.height - 15, 'copyright');
+        },
+        update: function () {
+            this.myPlane.animations.play('fly', 10, true);
+        },
+        rePlay: function () {
+            game.normalback.stop();
+            game.state.start('play');
+            game.over = false;
         }
     }
 
@@ -210,6 +323,7 @@
     game.state.add('preload', game.states.preload);
     game.state.add('start', game.states.start);
     game.state.add('play', game.states.play);
+    game.state.add('restart', game.states.restart);
     game.state.start('boot');
 
 })();

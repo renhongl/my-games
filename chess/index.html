@@ -1,0 +1,460 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>Chess</title>
+    <style>
+        .container {
+            width: 100%;
+            height: 500px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        #chess {
+            height: 450px;
+            width: 450px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.5), 0 0 30px rgba(0, 0, 0, 0.2) inset;
+            display: block;
+            margin: 20px;
+            float: left;
+        }
+
+        .wrap {
+            height: 450px;
+            width: 200px;
+            margin: 20px;
+            float: left;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.5), 0 0 30px rgba(0, 0, 0, 0.2) inset;
+        }
+
+        .message {
+            width: 100%;
+            height: 50px;
+            text-align: center;
+            color: #e721a6;
+            margin-top: 20px;
+            font-size: 16px;
+            text-shadow: 0 0 10px rgba(0, 0, 0, 0.7);
+            font-weight: 700;
+        }
+
+        .title {
+            width: 100%;
+            height: 50px;
+            text-align: center;
+            font-size: 14px;
+            text-shadow: 0 0 10px rgba(0, 0, 0, 0.7);
+        }
+
+        .timer {
+            clear: both;
+            width: 100%;
+            height: 50px;
+            text-align: left;
+            font-size: 14px;
+            margin-left: 20px;
+            text-shadow: 0 0 10px rgba(0, 0, 0, 0.7);
+        }
+
+        .point {
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            position: relative;
+            cursor: pointer;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            margin: 25px;
+            float: left;
+        }
+
+        .point::before {
+            content: attr(out);
+            width: 50px;
+            height: 50px;
+            background: grey;
+            border-radius: 50%;
+            position: absolute;
+            z-index: 1;
+            font-size: 5px;
+            color: #fff;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            text-shadow: 0 0 10px rgba(255, 255, 255, 0.5);
+        }
+
+        .point::after {
+            content: "";
+            width: 18px;
+            height: 18px;
+            background: rgba(0, 0, 0, 0.5);
+            position: absolute;
+            border-radius: 50%;
+            animation: bigger 3s linear 2s infinite;
+        }
+
+        .point:hover::before {
+            content: attr(over);
+            background: rgba(0, 0, 0, 0.3);
+            color: #E721A6;
+        }
+
+        .point:hover::after {
+            width: 55px;
+            height: 55px;
+            background: none;
+            border: 6px solid grey;
+            animation: changeBorder 2s linear 0s infinite alternate;
+        }
+
+        @keyframes changeBorder {
+            0% {
+                border: 6px solid grey;
+            }
+            100% {
+                border: 6px solid rgba(0, 0, 0, 0);
+            }
+        }
+
+        @keyframes bigger {
+            0% {
+                width: 38px;
+                height: 38px;
+                background: rgba(0, 0, 0, 0.5);
+            }
+            60% {
+                width: 80px;
+                height: 80px;
+                background: rgba(0, 0, 0, 0);
+            }
+            61% {
+                width: 38px;
+                height: 38px;
+                background: rgba(0, 0, 0, 0);
+            }
+            62% {
+                width: 38px;
+                height: 38px;
+                background: rgba(0, 0, 0, 0.5);
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <canvas id="chess" width="450" height="450px"></canvas>
+        <div class="wrap">
+            <div class="message"></div>
+            <div class="title">请选择对战模式</div>
+            <div class="point people-people" out="玩家" over="开始"></div>
+            <div class="point people-computer" out="电脑" over="开始"></div>
+            <div class="point reset" out="重置" over="重置"></div>
+            <div class="timer"></div>
+            <script>
+                (function () {
+
+                    var timerThread = null;
+                    var time = 0;
+                    var chessDOM = document.getElementById('chess');
+                    var title = document.querySelector('.title');
+                    var msg = document.querySelector('.message');
+                    var timer = document.querySelector('.timer');
+                    var chess = null;
+
+                    function Chess(chessDOM, isComputer) {
+                        this.chessDOM = chessDOM;
+                        this.context = chessDOM.getContext('2d');
+                        this.black = true;
+                        this.board = [];
+                        this.gameOver = false;
+                        this.wins = [];
+                        this.count = 0;
+                        this.blackWin = [];
+                        this.whiteWin = [];
+                        this.isComputer = isComputer || false;
+                    }
+
+                    Chess.prototype.init = function () {
+                        this.chessDOM.height = this.chessDOM.height;
+                        this.initBoard();
+                        this.countWinsArray();
+                        this.initWinArr();
+                        this.handleClick();
+                        return this;
+                    }
+
+                    Chess.prototype.initWinArr = function () {
+                        for (var i = 0; i < this.count; i++) {
+                            this.blackWin[i] = 0;
+                            this.whiteWin[i] = 0;
+                        }
+                    }
+
+                    Chess.prototype.handleClick = function () {
+                        this.chessDOM.onclick = function (e) {
+                            var x = Math.floor(e.offsetX / 30);
+                            var y = Math.floor(e.offsetY / 30);
+                            this.oneStep(x, y);
+                        }.bind(this);
+                    }
+
+                    Chess.prototype.oneStep = function (x, y) {
+                        if (this.gameOver || this.board[x][y] !== 0) {
+                            return;
+                        }
+                        if (this.black) {
+                            this.stepByBlack(x, y);
+                            this.board[x][y] = 1;
+                            this.black = false;
+                            this.verifyBlack(x, y);
+                            return;
+                        }
+                        this.stepByWhite(x, y);
+                        this.verifyWhite(x, y);
+                        this.board[x][y] = 2;
+                        this.black = true;
+                    }
+
+                    Chess.prototype.computerAI = function () {
+                        var blackCore = [];
+                        var computerCore = [];
+                        var max = 0;
+                        var maxX = 0;
+                        var maxY = 0;
+                        for (var i = 0; i < 15; i++) {
+                            blackCore[i] = [];
+                            computerCore[i] = [];
+                            for (var j = 0; j < 15; j++) {
+                                blackCore[i][j] = 0;
+                                computerCore[i][j] = 0;
+                            }
+                        }
+
+                        for (var x = 0; x < 15; x++) {
+                            for (var y = 0; y < 15; y++) {
+                                if (this.board[x][y] === 0) {
+                                    for (var k = 0; k < this.count; k++) {
+                                        if (this.wins[x][y][k]) {
+                                            if (this.blackWin[k] === 1) {
+                                                blackCore[x][y] += 200;
+                                            } else if (this.blackWin[k] === 2) {
+                                                blackCore[x][y] += 400;
+                                            } else if (this.blackWin[k] === 3) {
+                                                blackCore[x][y] += 1000;
+                                            } else if (this.blackWin[k] === 4) {
+                                                blackCore[x][y] += 10000;
+                                            }
+
+                                            if (this.whiteWin[k] === 1) {
+                                                computerCore[x][y] += 250;
+                                            } else if (this.whiteWin[k] === 2) {
+                                                computerCore[x][y] += 500;
+                                            } else if (this.whiteWin[k] === 3) {
+                                                computerCore[x][y] += 1500;
+                                            } else if (this.whiteWin[k] === 4) {
+                                                computerCore[x][y] += 20000;
+                                            }
+                                        }
+                                    }
+                                    var bigger = computerCore[x][y] > blackCore[x][y] ? computerCore[x][y] : blackCore[x][y];
+                                    if (bigger > max) {
+                                        max = bigger;
+                                        maxX = x;
+                                        maxY = y;
+                                    }
+                                }
+                            }
+                        }
+                        setTimeout(function () {
+                            this.oneStep(maxX, maxY);
+                        }.bind(this), 500);
+                    }
+
+                    Chess.prototype.verifyBlack = function (x, y) {
+                        for (var i = 0; i < this.count; i++) {
+                            if (this.wins[x][y][i]) {
+                                this.blackWin[i]++;
+                                this.whiteWin[i] = 6;
+                                if (this.blackWin[i] === 5) {
+                                    this.showSuccessDialog('黑棋赢了!');
+                                    this.gameOver = true;
+                                }
+                            }
+                        }
+                        if (this.isComputer) {
+                            this.computerAI();
+                        }
+                    }
+
+                    Chess.prototype.verifyWhite = function (x, y) {
+                        for (var j = 0; j < this.count; j++) {
+                            if (this.wins[x][y][j]) {
+                                this.whiteWin[j]++;
+                                this.blackWin[j] = 6;
+                                if (this.whiteWin[j] === 5) {
+                                    this.showSuccessDialog('白棋赢了!');
+                                    this.gameOver = true;
+                                }
+                            }
+                        }
+                    }
+
+                    Chess.prototype.showSuccessDialog = function (message) {
+                        var msg = document.querySelector('.message');
+                        msg.innerText = message;
+                        clearInterval(timerThread);
+                    }
+
+                    Chess.prototype.stepByWhite = function (x, y) {
+                        var a = x * 30 + 15;
+                        var b = y * 30 + 15;
+                        this.context.beginPath();
+                        var gradient = this.context.createRadialGradient(a, b, 1, a, b, 10);
+                        gradient.addColorStop('0', '#fff');
+                        gradient.addColorStop('1', 'grey');
+                        this.context.fillStyle = gradient;
+                        this.context.arc(a, b, 10, 0, 2 * Math.PI);
+                        this.context.fill();
+                        this.context.closePath();
+                    }
+
+                    Chess.prototype.stepByBlack = function (x, y) {
+                        var a = x * 30 + 15;
+                        var b = y * 30 + 15;
+                        this.context.beginPath();
+                        var gradient = this.context.createRadialGradient(a, b, 1, a, b, 10);
+                        gradient.addColorStop('0', 'grey');
+                        gradient.addColorStop('1', '#000');
+                        this.context.fillStyle = gradient;
+                        this.context.arc(a, b, 10, 0, 2 * Math.PI);
+                        this.context.fill();
+                        this.context.closePath();
+                    }
+
+                    Chess.prototype.initBoard = function () {
+                        this.context.strokeStyle = 'grey';
+                        for (var i = 0; i < 15; i++) {
+                            this.context.moveTo(15 + i * 30, 15);
+                            this.context.lineTo(15 + i * 30, 435);
+                            this.context.moveTo(15, 15 + i * 30);
+                            this.context.lineTo(435, 15 + i * 30);
+                            this.context.stroke();
+                            this.board[i] = [];
+                            for (var j = 0; j < 15; j++) {
+                                this.board[i][j] = 0;
+                            }
+                        }
+                    }
+
+                    Chess.prototype.countWinsArray = function () {
+                        for (var d = 0; d < 15; d++) {
+                            this.wins[d] = [];
+                            for (var e = 0; e < 15; e++) {
+                                this.wins[d][e] = [];
+                            }
+                        }
+
+                        for (var i = 0; i < 15; i++) {
+                            for (var j = 0; j < 11; j++) {
+                                for (var k = 0; k < 5; k++) {
+                                    this.wins[i][j + k][this.count] = true;
+                                }
+                                this.count++;
+                            }
+                        }
+
+                        for (var m = 0; m < 11; m++) {
+                            for (var n = 0; n < 15; n++) {
+                                for (var o = 0; o < 5; o++) {
+                                    this.wins[m + o][n][this.count] = true;
+                                }
+                                this.count++;
+                            }
+                        }
+
+                        for (var x = 0; x < 11; x++) {
+                            for (var y = 14; y > 3; y--) {
+                                for (var z = 0; z < 5; z++) {
+                                    this.wins[x + z][y - z][this.count] = true;
+                                }
+                                this.count++;
+                            }
+                        }
+
+                        for (var a = 0; a < 11; a++) {
+                            for (var b = 0; b < 11; b++) {
+                                for (var c = 0; c < 5; c++) {
+                                    this.wins[a + c][b + c][this.count] = true;
+                                }
+                                this.count++;
+                            }
+                        }
+                    }
+
+                    function parseTime(time) {
+                        var min = Math.floor(time / 60);
+                        var sec = time % 60;
+                        return min + '分' + sec + '秒';
+                    }
+
+                    function resetChess(titleText, stop) {
+                        time = 0;
+                        msg.innerText = '';
+                        timer.innerText = '时长: ' + parseTime(time);
+                        title.innerText = titleText;
+                        clearInterval(timerThread);
+                        chessDOM.height = chessDOM.height;
+                        //chess.setGameOver(stop); 
+                    }
+
+                    function startPeopleComputer() {
+                        resetChess('玩家与电脑对战进行中', false);
+                        chess = new Chess(chessDOM, true).init();
+                        runTimer();
+                    }
+
+                    function startPeoplePeople() {
+                        resetChess('玩家对战进行中', false);
+                        chess = new Chess(chessDOM).init();
+                        runTimer();
+                    }
+
+                    function runTimer() {
+                        timerThread = setInterval(function () {
+                            time++;
+                            var timeStr = parseTime(time);
+                            timer.innerText = '时长: ' + timeStr;
+                        }, 1000);
+                    }
+
+                    function main() {
+                        var peoplePeople = document.querySelector('.people-people');
+                        var peopleComputer = document.querySelector('.people-computer');
+                        var reset = document.querySelector('.reset');
+                        reset.onclick = function () {
+                            resetChess('请选择对战模式', true);
+                        }
+                        peopleComputer.onclick = function () {
+                            startPeopleComputer();
+                        }
+                        peoplePeople.onclick = function () {
+                            startPeoplePeople();
+                        }
+                    }
+
+                    main();
+                })();
+            </script>
+        </div>
+    </div>
+</body>
+
+</html>

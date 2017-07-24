@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>Snake</title>
+    <style>
+        .canvas {
+            width: 600px;
+            height: 600px;
+            border: 1px solid grey;
+            display: block;
+            margin: 0 auto;
+            background: #1d1f20;
+        }
+    </style>
+</head>
+
+<body>
+    <canvas class="canvas" width="600" height="600"></canvas>
+    <script>
+        (function () {
+            var SnakeGame = function () {
+                this.canvas = document.querySelector('.canvas');
+                this.context = this.canvas.getContext('2d');
+                this.snake = new Snake(this.context);
+                this.bean = new Bean(this.context);
+                this.timer = null;
+                this.stop = false;
+            };
+
+            SnakeGame.prototype.addEvent = function () {
+                var self = this;
+                document.onkeyup = function (e) {
+                    switch (e.keyCode) {
+                        case 37:
+                            self.snake.setDirection('left');
+                            break;
+                        case 38:
+                            self.snake.setDirection('top');
+                            break;
+                        case 39:
+                            self.snake.setDirection('right');
+                            break;
+                        case 40:
+                            self.snake.setDirection('down');
+                            break;
+                        default:
+                            break;
+                    }
+                }
+            }
+
+            SnakeGame.prototype.run = function () {
+                var now;
+                var then = Date.now();
+                var interval = 100;
+                var del;
+                this.addEvent();
+                this.snake.render();
+                this.bean.generate();
+                this.bean.render();
+                this.timer = function () {
+                    if (this.stop) {
+                        return;
+                    }
+                    now = Date.now();
+                    del = now - then;
+                    console.log(del, interval);
+                    if (del > interval) {
+                        then = now - (del % interval);
+                        this.snake.clear();
+                        this.snake.run();
+                        this.bean.render();
+                        this.snake.eat(this.bean);
+                        this.snake.out(this);
+                    }
+                    requestAnimationFrame(this.timer);
+                }.bind(this);
+                this.timer();
+            }
+
+            var Bean = function (context) {
+                this.context = context;
+                this.location = [];
+            }
+
+            Bean.prototype.generate = function () {
+                this.location[0] = Math.floor(Math.random() * 59);
+                this.location[1] = Math.floor(Math.random() * 59);
+            }
+
+            Bean.prototype.render = function () {
+                this.context.beginPath();
+                var gradient = this.context.createRadialGradient(this.location[0] * 10, this.location[1] * 10, 1, this.location[0] * 10, this.location[1] * 10, 10);
+                gradient.addColorStop('0', '#fff');
+                gradient.addColorStop('1', 'red');
+                this.context.fillStyle = gradient;
+                this.context.arc(this.location[0] * 10 + 5, this.location[1] * 10 + 5, 7, 7, 0, 2 * Math.PI);
+                this.context.fill();
+                this.context.closePath();
+            }
+
+            var Snake = function (context) {
+                this.context = context;
+                this.length = 1;
+                this.location = [[4, 0], [3, 0], [2, 0], [1, 0], [0, 0]];
+                this.direction = 'down';
+                this.speed = 1;
+                this.turn = [];
+            }
+
+            Snake.prototype.out = function (game) {
+                var x = this.location[0][0];
+                var y = this.location[0][1];
+                console.log(x, y);
+                if (x < 0 || x > 79 || y < 0 || y > 79) {
+                    game.stop = true;
+                }
+            }
+
+            Snake.prototype.eat = function (bean) {
+                if (this.location[0][0] === bean.location[0] && this.location[0][1] === bean.location[1]) {
+                    bean.generate();
+                    this.location.push(bean.location);
+                }
+            }
+
+            Snake.prototype.setDirection = function (dir) {
+                this.direction = dir;
+                this.turn.push(this.location[0]);
+            }
+
+            Snake.prototype.run = function () {
+                switch (this.direction) {
+                    case 'right':
+                        this.runRight();
+                        break;
+                    case 'left':
+                        this.runLeft();
+                        break;
+                    case 'top':
+                        this.runTop();
+                        break;
+                    case 'down':
+                        this.runDown();
+                        break;
+                    default:
+                        break;
+                }
+                this.render();
+            }
+
+            Snake.prototype.runRight = function () {
+                this.location.pop();
+                var header = [];
+                header[0] = this.location[0][0] + this.speed;
+                header[1] = this.location[0][1];
+                this.location.unshift(header);
+            }
+
+            Snake.prototype.runLeft = function () {
+                this.location.pop();
+                var header = [];
+                header[0] = this.location[0][0] - this.speed;
+                header[1] = this.location[0][1];
+                this.location.unshift(header);
+            }
+
+            Snake.prototype.runTop = function () {
+                this.location.pop();
+                var header = [];
+                header[0] = this.location[0][0];
+                header[1] = this.location[0][1] - this.speed;
+                this.location.unshift(header);
+            }
+
+            Snake.prototype.runDown = function () {
+                this.location.pop();
+                var header = [];
+                header[0] = this.location[0][0];
+                header[1] = this.location[0][1] + this.speed;
+                this.location.unshift(header);
+            }
+
+            Snake.prototype.clear = function () {
+                this.context.clearRect(0, 0, 600, 600);
+            }
+
+            Snake.prototype.render = function () {
+                for (var i = 0; i < this.location.length; i++) {
+                    if (i === 0) {
+                        this.renderHeader(i);
+                    } else {
+                        this.renderBody(i);
+                    }
+                }
+            }
+
+            Snake.prototype.renderHeader = function (i) {
+                this.context.beginPath();
+                var gradient = this.context.createRadialGradient(this.location[i][0] * 10 + 5, this.location[i][1] * 10 + 5, 1, this.location[i][0] * 10 + 5, this.location[i][1] * 10 + 5, 10);
+                gradient.addColorStop('0', '#fff');
+                gradient.addColorStop('1', 'red');
+                this.context.fillStyle = gradient;
+                this.context.arc(this.location[i][0] * 10 + 5, this.location[i][1] * 10 + 5, 7, 7, 0, 2 * Math.PI);
+                this.context.fill();
+                this.context.closePath();
+            }
+
+            Snake.prototype.renderBody = function (i) {
+                this.context.beginPath();
+                var gradient = this.context.createRadialGradient(this.location[i][0] * 10 + 5, this.location[i][1] * 10 + 5, 1, this.location[i][0] * 10 + 5, this.location[i][1] * 10 + 5, 10);
+                gradient.addColorStop('0', '#fff');
+                gradient.addColorStop('1', '#0eaf56');
+                this.context.fillStyle = gradient;
+                this.context.arc(this.location[i][0] * 10 + 5, this.location[i][1] * 10 + 5, 7, 7, 0, 2 * Math.PI);
+                this.context.fill();
+                this.context.closePath();
+            }
+
+            var snakeGame = new SnakeGame();
+            snakeGame.run();
+
+        })();
+    </script>
+</body>
+
+</html>
